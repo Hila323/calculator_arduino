@@ -1,0 +1,135 @@
+#include <Wire.h>
+#include <Keypad.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const byte ROWS = 4;
+const byte COLS = 4;
+
+char keys[ROWS][COLS] = {
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}
+};
+
+byte rowPins[ROWS] = {6, 5, 4, 3};
+byte colPins[COLS] = {10, 9, 8, 7};
+
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+int firstNumber = 0;
+int secondNumber = 0;
+int firstDigits = 0;
+int secondDigits = 0;
+
+char operation = 0;
+bool secondNumberMode = false;
+bool resultShown = false;
+
+void clearCalculator() {
+  firstNumber = 0;
+  secondNumber = 0;
+  firstDigits = 0;
+  secondDigits = 0;
+  operation = 0;
+  secondNumberMode = false;
+  resultShown = false;
+  lcd.clear();
+}
+
+char operationSymbol(char key) {
+  if (key == 'A') return '+';
+  if (key == 'B') return '-';
+  if (key == 'C') return '*';
+  if (key == 'D') return '/';
+  return ' ';
+}
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Calculator");
+  lcd.setCursor(0, 1);
+  lcd.print("Ready");
+
+  delay(3000);
+  lcd.clear();
+}
+
+void loop() {
+  char key = keypad.getKey();
+
+  if (!key) {
+    return;
+  }
+
+  if (key == '*') {
+    clearCalculator();
+    return;
+  }
+
+  if (key >= '0' && key <= '9') {
+    if (resultShown) {
+      clearCalculator();
+    }
+
+    int digit = key - '0';
+
+    if (!secondNumberMode) {
+      if (firstDigits < 2) {
+        firstNumber = firstNumber * 10 + digit;
+        firstDigits++;
+        lcd.print(key);
+      }
+    } else {
+      if (secondDigits < 2) {
+        secondNumber = secondNumber * 10 + digit;
+        secondDigits++;
+        lcd.print(key);
+      }
+    }
+    return;
+  }
+
+  if (key == 'A' || key == 'B' || key == 'C' || key == 'D') {
+    if (firstDigits > 0 && !secondNumberMode && !resultShown) {
+      operation = key;
+      secondNumberMode = true;
+      lcd.print(operationSymbol(key));
+    }
+    return;
+  }
+
+  if (key == '#') {
+    if (operation == 0 || firstDigits == 0 || secondDigits == 0) {
+      return;
+    }
+
+    lcd.setCursor(0, 1);
+
+    if (operation == 'A') {
+      lcd.print("=");
+      lcd.print(firstNumber + secondNumber);
+    } else if (operation == 'B') {
+      lcd.print("=");
+      lcd.print(firstNumber - secondNumber);
+    } else if (operation == 'C') {
+      lcd.print("=");
+      lcd.print(firstNumber * secondNumber);
+    } else if (operation == 'D') {
+      if (secondNumber == 0) {
+        lcd.print("Error: Div by 0");
+      } else {
+        float result = (float)firstNumber / secondNumber;
+        lcd.print("=");
+        lcd.print(result, 2);
+      }
+    }
+
+    resultShown = true;
+  }
+}
